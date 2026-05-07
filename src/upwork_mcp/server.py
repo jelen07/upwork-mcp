@@ -48,9 +48,11 @@ mcp = FastMCP(
 @mcp.tool()
 async def upwork_search_jobs(
     query: Annotated[str, Field(description="Search keywords")],
-    category: Annotated[str | None, Field(description="Job category filter")] = None,
-    budget_min: Annotated[int | None, Field(description="Minimum budget in USD")] = None,
-    budget_max: Annotated[int | None, Field(description="Maximum budget in USD")] = None,
+    category: Annotated[str | None, Field(description="Job category filter (accepted for compatibility, not encoded in URL)")] = None,
+    budget_min: Annotated[int | None, Field(description="Minimum fixed-price budget in USD")] = None,
+    budget_max: Annotated[int | None, Field(description="Maximum fixed-price budget in USD")] = None,
+    hourly_rate_min: Annotated[int | None, Field(description="Minimum hourly rate in USD (applies to hourly jobs)")] = None,
+    payment_verified: Annotated[bool | None, Field(description="Only return jobs from payment-verified clients")] = None,
     experience_level: Annotated[
         str | None, Field(description="Experience level: entry, intermediate, or expert")
     ] = None,
@@ -66,6 +68,8 @@ async def upwork_search_jobs(
         category=category,
         budget_min=budget_min,
         budget_max=budget_max,
+        hourly_rate_min=hourly_rate_min,
+        payment_verified=payment_verified,
         experience_level=experience_level,
         job_type=job_type,
         limit=limit,

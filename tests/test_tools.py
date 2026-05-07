@@ -75,3 +75,81 @@ def test_contracts_params_validation():
 
     params = ContractsParams(status="ended")
     assert params.status == "ended"
+
+
+def test_build_search_url_uses_real_endpoint():
+    """Search must hit /nx/search/jobs/ with q=, not the personalised feed."""
+    from upwork_mcp.tools.jobs import JobSearchParams, _build_search_url
+
+    url = _build_search_url(JobSearchParams(query="python developer"))
+    assert url.startswith("https://www.upwork.com/nx/search/jobs/?")
+    assert "q=python+developer" in url
+
+
+def test_build_search_url_encodes_filters():
+    from upwork_mcp.tools.jobs import JobSearchParams, _build_search_url
+
+    url = _build_search_url(
+        JobSearchParams(
+            query="rust",
+            experience_level="expert",
+            job_type="hourly",
+            budget_min=1000,
+            budget_max=5000,
+            hourly_rate_min=80,
+            payment_verified=True,
+        )
+    )
+    assert "contractor_tier=3" in url
+    assert "t=0" in url
+    assert "amount=1000-5000" in url
+    assert "hourly_rate=80-" in url
+    assert "payment_verified_only=1" in url
+
+
+def test_looks_like_settings_page():
+    from upwork_mcp.tools.profile import _looks_like_settings_page
+
+    assert _looks_like_settings_page("Settings", None) is True
+    assert _looks_like_settings_page("settings", None) is True
+    assert _looks_like_settings_page(None, "Profile") is True
+    assert _looks_like_settings_page("Jane Doe", "Senior Backend Engineer") is False
+    assert _looks_like_settings_page(None, None) is False
+
+
+def test_extract_profile_from_next_data_basic():
+    from upwork_mcp.tools.profile import _extract_profile_from_next_data
+
+    payload = {
+        "props": {
+            "pageProps": {
+                "freelancer": {
+                    "firstName": "Jane",
+                    "lastName": "Doe",
+                    "title": "Senior Backend Engineer",
+                    "description": "Go and Python distributed systems.",
+                    "hourlyRate": {"amount": 95, "currency": "USD"},
+                    "skills": [
+                        "Go",
+                        {"name": "Python"},
+                        {"preferredLabel": "PostgreSQL"},
+                    ],
+                    "jobSuccessScore": 100,
+                }
+            }
+        }
+    }
+    extracted = _extract_profile_from_next_data(payload)
+    assert extracted["name"] == "Jane Doe"
+    assert extracted["title"] == "Senior Backend Engineer"
+    assert extracted["overview"].startswith("Go and Python")
+    assert extracted["hourly_rate"] == "95 USD"
+    assert extracted["skills"] == ["Go", "Python", "PostgreSQL"]
+    assert extracted["job_success_score"] == "100%"
+
+
+def test_extract_profile_from_next_data_handles_missing_keys():
+    from upwork_mcp.tools.profile import _extract_profile_from_next_data
+
+    assert _extract_profile_from_next_data({}) == {}
+    assert _extract_profile_from_next_data({"props": {"pageProps": {}}}) == {}
