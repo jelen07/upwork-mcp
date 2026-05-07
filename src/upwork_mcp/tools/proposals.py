@@ -1,7 +1,9 @@
 """Proposal tools for Upwork MCP."""
 
 from pydantic import BaseModel, Field
+
 from ..browser.client import get_browser
+from ..utils.security import require_writes_enabled, validate_upwork_url
 
 
 class ProposalsParams(BaseModel):
@@ -124,6 +126,8 @@ async def get_proposal_details(proposal_url: str) -> dict:
 
     Returns details including cover letter, bid, and any messages.
     """
+    proposal_url = validate_upwork_url(proposal_url)
+
     browser = get_browser()
     await browser.ensure_logged_in()
     page = await browser.get_page()
@@ -172,12 +176,15 @@ async def submit_proposal(params: SubmitProposalParams) -> dict:
 
     Returns submission status and connects used.
     """
+    require_writes_enabled("submit_proposal")
+    job_url = validate_upwork_url(params.job_url)
+
     browser = get_browser()
     await browser.ensure_logged_in()
     page = await browser.get_page()
 
     # Navigate to job page first
-    await page.goto(params.job_url, wait_until="networkidle")
+    await page.goto(job_url, wait_until="networkidle")
 
     # Click apply button
     apply_btn = await page.query_selector('[data-test="apply-button"], button:has-text("Apply Now")')
@@ -253,6 +260,9 @@ async def withdraw_proposal(proposal_url: str) -> dict:
 
     Returns withdrawal status.
     """
+    require_writes_enabled("withdraw_proposal")
+    proposal_url = validate_upwork_url(proposal_url)
+
     browser = get_browser()
     await browser.ensure_logged_in()
     page = await browser.get_page()

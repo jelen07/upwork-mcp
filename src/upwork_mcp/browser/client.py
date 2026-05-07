@@ -1,14 +1,27 @@
-"""Browser client for Upwork automation using Patchright with CDP."""
+"""Browser client for Upwork automation using Patchright with CDP.
+
+Security notes
+--------------
+Chrome is launched with ``--remote-debugging-port`` bound to the loopback
+address only and with ``--remote-allow-origins`` restricted to the local
+DevTools origin. Without those flags Chrome will accept WebSocket upgrades
+from any origin that hits 127.0.0.1, which historically enabled DNS-rebinding
+attacks against the debugging endpoint. The port itself is still reachable by
+any local process running as the same user; treat the host accordingly.
+"""
 
 import asyncio
-import subprocess
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
-from patchright.async_api import async_playwright, Browser, BrowserContext, Page
+
+from patchright.async_api import Browser, BrowserContext, Page, async_playwright
+
+CDP_HOST = "127.0.0.1"
+CDP_PORT = int(os.getenv("UPWORK_MCP_CDP_PORT", "9222"))
 
 PROFILE_DIR = Path.home() / ".upwork-mcp" / "chrome-profile"
-CDP_PORT = 9222
 
 # Real Chrome paths by platform
 CHROME_PATHS = [
@@ -32,25 +45,34 @@ def is_chrome_running_with_debug() -> bool:
     """Check if Chrome is running with debug port."""
     import urllib.request
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{CDP_PORT}/json/version", timeout=2) as resp:
+        with urllib.request.urlopen(
+            f"http://{CDP_HOST}:{CDP_PORT}/json/version", timeout=2
+        ) as resp:
             return resp.status == 200
     except Exception:
         return False
 
 
 def start_chrome_with_debug() -> bool:
-    """Start Chrome with remote debugging enabled."""
+    """Start Chrome with remote debugging enabled.
+
+    The debugging endpoint is bound to 127.0.0.1 and the allowed origin is
+    pinned to the same loopback URL so Chrome will reject DevTools
+    WebSocket upgrades from other origins (mitigates DNS-rebinding-style
+    attacks against the CDP endpoint).
+    """
     chrome_path = find_chrome()
     if not chrome_path:
         return False
 
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Start Chrome with debugging port
     subprocess.Popen(
         [
             chrome_path,
             f"--remote-debugging-port={CDP_PORT}",
+            f"--remote-debugging-address={CDP_HOST}",
+            f"--remote-allow-origins=http://{CDP_HOST}:{CDP_PORT}",
             f"--user-data-dir={PROFILE_DIR}",
             "--no-first-run",
             "--no-default-browser-check",
@@ -99,7 +121,7 @@ class UpworkBrowser:
 
         # Connect via CDP
         self._browser = await self._playwright.chromium.connect_over_cdp(
-            f"http://127.0.0.1:{CDP_PORT}"
+            f"http://{CDP_HOST}:{CDP_PORT}"
         )
 
         contexts = self._browser.contexts

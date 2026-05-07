@@ -4,12 +4,13 @@ import asyncio
 from pathlib import Path
 import shutil
 from .client import (
+    CDP_HOST,
+    CDP_PORT,
+    PROFILE_DIR,
     UpworkBrowser,
     find_chrome,
     is_chrome_running_with_debug,
     start_chrome_with_debug,
-    CDP_PORT,
-    PROFILE_DIR,
 )
 
 
@@ -38,7 +39,11 @@ async def login_interactive(timeout_minutes: int = 5):
         if not start_chrome_with_debug():
             print(f"ERROR: Could not start Chrome with debug port.")
             print(f"Please start Chrome manually with:")
-            print(f'  "{chrome_path}" --remote-debugging-port={CDP_PORT}')
+            print(
+                f'  "{chrome_path}" --remote-debugging-port={CDP_PORT} '
+                f"--remote-debugging-address={CDP_HOST} "
+                f"--remote-allow-origins=http://{CDP_HOST}:{CDP_PORT}"
+            )
             return
 
         await asyncio.sleep(2)

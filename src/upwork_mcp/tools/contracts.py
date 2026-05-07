@@ -1,7 +1,9 @@
 """Contract tools for Upwork MCP."""
 
 from pydantic import BaseModel, Field
+
 from ..browser.client import get_browser
+from ..utils.security import validate_upwork_url
 
 
 class ContractsParams(BaseModel):
@@ -117,6 +119,8 @@ async def get_contract_details(contract_url: str) -> dict:
 
     Returns full contract details including milestones, hours logged, and feedback.
     """
+    contract_url = validate_upwork_url(contract_url)
+
     browser = get_browser()
     await browser.ensure_logged_in()
     page = await browser.get_page()
@@ -223,13 +227,15 @@ async def get_work_diary(contract_url: str, week_offset: int = 0) -> dict:
 
     Returns work diary with daily hours and screenshots.
     """
+    contract_url = validate_upwork_url(contract_url)
+
     browser = get_browser()
     await browser.ensure_logged_in()
     page = await browser.get_page()
 
-    # Navigate to work diary
-    # The exact URL structure may vary
-    diary_url = contract_url.replace("/contracts/", "/work-diary/")
+    diary_url = validate_upwork_url(
+        contract_url.replace("/contracts/", "/work-diary/")
+    )
     await page.goto(diary_url, wait_until="networkidle")
 
     diary = {"contract_url": contract_url, "days": []}

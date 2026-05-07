@@ -1,7 +1,19 @@
 """Messaging tools for Upwork MCP."""
 
 from pydantic import BaseModel, Field
+
 from ..browser.client import get_browser
+from ..utils.security import require_writes_enabled, validate_upwork_url
+
+
+def _resolve_room_url(room_id: str) -> str:
+    """Validate a room_id (raw ID or full URL) and return a safe URL."""
+
+    if "://" in room_id:
+        return validate_upwork_url(room_id)
+    return validate_upwork_url(
+        f"https://www.upwork.com/nx/messages/{room_id.lstrip('/')}"
+    )
 
 
 class MessagesParams(BaseModel):
@@ -112,11 +124,7 @@ async def get_conversation_messages(room_id: str, limit: int = 50) -> dict:
     await browser.ensure_logged_in()
     page = await browser.get_page()
 
-    # Build URL
-    if room_id.startswith("http"):
-        url = room_id
-    else:
-        url = f"https://www.upwork.com/nx/messages/{room_id}"
+    url = _resolve_room_url(room_id)
 
     await page.goto(url, wait_until="networkidle")
 
@@ -194,15 +202,12 @@ async def send_message(params: SendMessageParams) -> dict:
 
     Returns send status.
     """
+    require_writes_enabled("send_message")
+    url = _resolve_room_url(params.room_id)
+
     browser = get_browser()
     await browser.ensure_logged_in()
     page = await browser.get_page()
-
-    # Navigate to conversation
-    if params.room_id.startswith("http"):
-        url = params.room_id
-    else:
-        url = f"https://www.upwork.com/nx/messages/{params.room_id}"
 
     await page.goto(url, wait_until="networkidle")
 
