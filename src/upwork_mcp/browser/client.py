@@ -13,6 +13,7 @@ any local process running as the same user; treat the host accordingly.
 import asyncio
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -81,11 +82,16 @@ def start_chrome_with_debug() -> bool:
         stderr=subprocess.DEVNULL,
     )
 
-    # Wait for Chrome to start
+    # Wait for Chrome to start. ``start_chrome_with_debug`` is a sync
+    # function that may be called from inside an asyncio event loop
+    # (login_interactive, check_session). Driving the loop with
+    # ``run_until_complete`` from inside a running loop fails with
+    # "This event loop is already running" on Python 3.13, so we use a
+    # plain blocking sleep here.
     for _ in range(10):
         if is_chrome_running_with_debug():
             return True
-        asyncio.get_event_loop().run_until_complete(asyncio.sleep(0.5))
+        time.sleep(0.5)
 
     return is_chrome_running_with_debug()
 
