@@ -1,10 +1,13 @@
 """Job search and details tools for Upwork MCP."""
 
-import re
 import asyncio
+import re
 import urllib.parse
+
 from pydantic import BaseModel, Field
+
 from ..browser.client import get_browser
+from ..utils.security import validate_upwork_url
 
 
 class JobSearchParams(BaseModel):
@@ -130,10 +133,10 @@ async def get_job_details(params: JobDetailsParams) -> dict:
     browser = get_browser()
     page = await browser.get_page()
 
-    # Normalize URL
-    url = params.job_url
-    if not url.startswith("http"):
-        url = f"https://www.upwork.com/jobs/{url}"
+    raw = params.job_url
+    if "://" not in raw:
+        raw = f"https://www.upwork.com/jobs/{raw.lstrip('/')}"
+    url = validate_upwork_url(raw)
 
     await page.goto(url, wait_until="networkidle")
     await asyncio.sleep(3)

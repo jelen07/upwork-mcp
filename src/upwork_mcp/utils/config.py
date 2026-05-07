@@ -7,9 +7,10 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Base directories
+# Base directories. Keep ``PROFILE_DIR`` aligned with ``browser.client`` so
+# the README, --logout, and Chrome's --user-data-dir all agree.
 DATA_DIR = Path.home() / ".upwork-mcp"
-PROFILE_DIR = DATA_DIR / "profile"
+PROFILE_DIR = DATA_DIR / "chrome-profile"
 CACHE_DIR = DATA_DIR / "cache"
 LOG_DIR = DATA_DIR / "logs"
 
